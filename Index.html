@@ -1,0 +1,213 @@
+ <!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Jogo do Boneco Único</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      font-family: Arial, sans-serif;
+      background: #111;
+      color: #fff;
+      text-align: center;
+    }
+    canvas {
+      display: block;
+      background: #eee;
+      border: 2px solid #333;
+    }
+    #scoreboard {
+      font-size: 1.2em;
+      margin-top: 10px;
+    }
+    /* Estilos dos botões virtuais */
+    .controls {
+      position: fixed;
+      bottom: 20px;
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+    }
+    .button {
+      width: 60px;
+      height: 60px;
+      background: rgba(255, 255, 255, 0.2);
+      border: 2px solid white;
+      border-radius: 50%;
+      font-size: 24px;
+      color: white;
+      text-align: center;
+      line-height: 60px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .button:active {
+      background: rgba(255, 255, 255, 0.5);
+    }
+  </style>
+</head>
+<body>
+  <h1>Jogo do Boneco Único</h1>
+  <div id="scoreboard">Estrelas: 0</div>
+  <canvas id="gameCanvas"></canvas>
+
+  <!-- Controles para mobile -->
+  <div class="controls">
+    <div class="button" id="left">◀</div>
+    <div class="button" id="jump">▲</div>
+    <div class="button" id="right">▶</div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    // Ajustar canvas ao tamanho da tela
+    function resizeCanvas() {
+      canvas.width = window.innerWidth * 0.9;
+      canvas.height = window.innerHeight * 0.7;
+    }
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+
+    let score = 0;
+    const scoreboard = document.getElementById('scoreboard');
+
+    const boneco = {
+      x: 50,
+      y: canvas.height - 80,
+      width: 40,
+      height: 60,
+      color: '#FF5733',
+      dx: 0,
+      dy: 0,
+      speed: 3,
+      jumping: false,
+      gravity: 0.5,
+      jumpForce: -10,
+    };
+
+    const plataformas = [{ x: 0, y: canvas.height - 40, width: canvas.width, height: 40 }];
+
+    const estrelas = [];
+    const maxEstrelas = 5;
+
+    const keys = {};
+
+    document.addEventListener('keydown', (e) => { keys[e.code] = true; });
+    document.addEventListener('keyup', (e) => { keys[e.code] = false; });
+
+    function update() {
+      if (keys['ArrowRight'] || keys['KeyD']) {
+        boneco.dx = boneco.speed;
+      } else if (keys['ArrowLeft'] || keys['KeyA']) {
+        boneco.dx = -boneco.speed;
+      } else {
+        boneco.dx = 0;
+      }
+
+      if ((keys['ArrowUp'] || keys['KeyW'] || keys['Space']) && !boneco.jumping) {
+        boneco.dy = boneco.jumpForce;
+        boneco.jumping = true;
+      }
+
+      boneco.dy += boneco.gravity;
+      boneco.x += boneco.dx;
+      boneco.y += boneco.dy;
+
+      plataformas.forEach((plat) => {
+        if (
+          boneco.x < plat.x + plat.width &&
+          boneco.x + boneco.width > plat.x &&
+          boneco.y < plat.y + plat.height &&
+          boneco.y + boneco.height > plat.y
+        ) {
+          if (boneco.dy >= 0) {
+            boneco.y = plat.y - boneco.height;
+            boneco.dy = 0;
+            boneco.jumping = false;
+          }
+        }
+      });
+
+      if (boneco.x < 0) boneco.x = 0;
+      if (boneco.x + boneco.width > canvas.width) boneco.x = canvas.width - boneco.width;
+      if (boneco.y + boneco.height > canvas.height) {
+        boneco.y = canvas.height - boneco.height;
+        boneco.dy = 0;
+        boneco.jumping = false;
+      }
+
+      estrelas.forEach((estrela, index) => {
+        if (
+          boneco.x < estrela.x + estrela.size &&
+          boneco.x + boneco.width > estrela.x &&
+          boneco.y < estrela.y + estrela.size &&
+          boneco.y + boneco.height > estrela.y
+        ) {
+          estrelas.splice(index, 1);
+          score++;
+          scoreboard.textContent = `Estrelas: ${score}`;
+        }
+      });
+
+      if (estrelas.length < maxEstrelas) criarEstrela();
+    }
+
+    function criarEstrela() {
+      const size = Math.random() * 15 + 10;
+      const x = Math.random() * (canvas.width - size);
+      const y = Math.random() * (canvas.height / 2);
+      estrelas.push({ x, y, size, color: '#FFD700' });
+    }
+
+    let hue = 0;
+
+    function draw() {
+      hue = (hue + 0.3) % 360;
+      ctx.fillStyle = `hsl(${hue}, 30%, 20%)`;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      ctx.fillStyle = '#444';
+      plataformas.forEach((plat) => {
+        ctx.fillRect(plat.x, plat.y, plat.width, plat.height);
+      });
+
+      ctx.fillStyle = boneco.color;
+      ctx.fillRect(boneco.x, boneco.y, boneco.width, boneco.height);
+
+      estrelas.forEach((estrela) => {
+        ctx.fillStyle = estrela.color;
+        ctx.beginPath();
+        ctx.arc(estrela.x, estrela.y, estrela.size / 2, 0, Math.PI * 2);
+        ctx.fill();
+      });
+    }
+
+    function loop() {
+      update();
+      draw();
+      requestAnimationFrame(loop);
+    }
+
+    loop();
+
+    // Controles para mobile
+    document.getElementById('left').addEventListener('touchstart', () => { keys['ArrowLeft'] = true; });
+    document.getElementById('left').addEventListener('touchend', () => { keys['ArrowLeft'] = false; });
+
+    document.getElementById('right').addEventListener('touchstart', () => { keys['ArrowRight'] = true; });
+    document.getElementById('right').addEventListener('touchend', () => { keys['ArrowRight'] = false; });
+
+    document.getElementById('jump').addEventListener('touchstart', () => {
+      if (!boneco.jumping) {
+        keys['ArrowUp'] = true;
+        setTimeout(() => { keys['ArrowUp'] = false; }, 100);
+      }
+    });
+  </script>
+</body>
+</html>
