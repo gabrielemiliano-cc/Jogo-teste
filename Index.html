@@ -1,213 +1,139 @@
- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Jogo do Boneco Único</title>
-  <style>
-    body {
-      margin: 0;
-      overflow: hidden;
-      font-family: Arial, sans-serif;
-      background: #111;
-      color: #fff;
-      text-align: center;
-    }
-    canvas {
-      display: block;
-      background: #eee;
-      border: 2px solid #333;
-    }
-    #scoreboard {
-      font-size: 1.2em;
-      margin-top: 10px;
-    }
-    /* Estilos dos botões virtuais */
-    .controls {
-      position: fixed;
-      bottom: 20px;
-      width: 100%;
-      display: flex;
-      justify-content: center;
-      gap: 10px;
-    }
-    .button {
-      width: 60px;
-      height: 60px;
-      background: rgba(255, 255, 255, 0.2);
-      border: 2px solid white;
-      border-radius: 50%;
-      font-size: 24px;
-      color: white;
-      text-align: center;
-      line-height: 60px;
-      cursor: pointer;
-      user-select: none;
-    }
-    .button:active {
-      background: rgba(255, 255, 255, 0.5);
-    }
-  </style>
+    <meta charset="UTF-8">
+    <title>Jogo do Quadro</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #121212;
+            color: white;
+            text-align: center;
+            margin: 0;
+            padding: 0;
+        }
+        h1 {
+            margin-top: 20px;
+        }
+        #gameArea {
+            position: relative;
+            width: 600px;
+            height: 400px;
+            margin: 30px auto;
+            background-color: #1e1e1e;
+            border: 2px solid #444;
+        }
+        #box {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            background-color: red;
+            display: none;
+            cursor: pointer;
+            border-radius: 8px;
+        }
+        .controls {
+            margin: 20px;
+        }
+        button {
+            padding: 10px 15px;
+            margin: 5px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .easy { background-color: green; }
+        .normal { background-color: orange; }
+        .hard { background-color: crimson; }
+        .pause { background-color: gray; }
+        .restart { background-color: royalblue; }
+        #scoreDisplay {
+            font-size: 20px;
+        }
+    </style>
 </head>
 <body>
-  <h1>Jogo do Boneco Único</h1>
-  <div id="scoreboard">Estrelas: 0</div>
-  <canvas id="gameCanvas"></canvas>
 
-  <!-- Controles para mobile -->
-  <div class="controls">
-    <div class="button" id="left">◀</div>
-    <div class="button" id="jump">▲</div>
-    <div class="button" id="right">▶</div>
-  </div>
+    <h1>Jogo do Quadro Aleatório</h1>
 
-  <script>
-    const canvas = document.getElementById('gameCanvas');
-    const ctx = canvas.getContext('2d');
+    <div class="controls">
+        <button class="easy" onclick="startGame('easy')">Fácil</button>
+        <button class="normal" onclick="startGame('normal')">Normal</button>
+        <button class="hard" onclick="startGame('hard')">Difícil</button>
+        <button class="pause" onclick="togglePause()">Pausar</button>
+        <button class="restart" onclick="resetGame()">Reiniciar</button>
+    </div>
 
-    // Ajustar canvas ao tamanho da tela
-    function resizeCanvas() {
-      canvas.width = window.innerWidth * 0.9;
-      canvas.height = window.innerHeight * 0.7;
-    }
-    resizeCanvas();
-    window.addEventListener('resize', resizeCanvas);
+    <div id="scoreDisplay">Pontuação: 0</div>
 
-    let score = 0;
-    const scoreboard = document.getElementById('scoreboard');
+    <div id="gameArea">
+        <div id="box" onclick="hitBox()"></div>
+    </div>
 
-    const boneco = {
-      x: 50,
-      y: canvas.height - 80,
-      width: 40,
-      height: 60,
-      color: '#FF5733',
-      dx: 0,
-      dy: 0,
-      speed: 3,
-      jumping: false,
-      gravity: 0.5,
-      jumpForce: -10,
-    };
+    <script>
+        const box = document.getElementById("box");
+        const gameArea = document.getElementById("gameArea");
+        const scoreDisplay = document.getElementById("scoreDisplay");
 
-    const plataformas = [{ x: 0, y: canvas.height - 40, width: canvas.width, height: 40 }];
+        let score = 0;
+        let gameInterval;
+        let gameSpeed = 1000;
+        let isPaused = false;
 
-    const estrelas = [];
-    const maxEstrelas = 5;
+        const difficulties = {
+            easy: 1500,
+            normal: 1000,
+            hard: 600
+        };
 
-    const keys = {};
-
-    document.addEventListener('keydown', (e) => { keys[e.code] = true; });
-    document.addEventListener('keyup', (e) => { keys[e.code] = false; });
-
-    function update() {
-      if (keys['ArrowRight'] || keys['KeyD']) {
-        boneco.dx = boneco.speed;
-      } else if (keys['ArrowLeft'] || keys['KeyA']) {
-        boneco.dx = -boneco.speed;
-      } else {
-        boneco.dx = 0;
-      }
-
-      if ((keys['ArrowUp'] || keys['KeyW'] || keys['Space']) && !boneco.jumping) {
-        boneco.dy = boneco.jumpForce;
-        boneco.jumping = true;
-      }
-
-      boneco.dy += boneco.gravity;
-      boneco.x += boneco.dx;
-      boneco.y += boneco.dy;
-
-      plataformas.forEach((plat) => {
-        if (
-          boneco.x < plat.x + plat.width &&
-          boneco.x + boneco.width > plat.x &&
-          boneco.y < plat.y + plat.height &&
-          boneco.y + boneco.height > plat.y
-        ) {
-          if (boneco.dy >= 0) {
-            boneco.y = plat.y - boneco.height;
-            boneco.dy = 0;
-            boneco.jumping = false;
-          }
+        function startGame(level) {
+            clearInterval(gameInterval);
+            gameSpeed = difficulties[level];
+            score = 0;
+            scoreDisplay.textContent = "Pontuação: 0";
+            isPaused = false;
+            box.style.display = "block";
+            moveBox();
+            gameInterval = setInterval(moveBox, gameSpeed);
         }
-      });
 
-      if (boneco.x < 0) boneco.x = 0;
-      if (boneco.x + boneco.width > canvas.width) boneco.x = canvas.width - boneco.width;
-      if (boneco.y + boneco.height > canvas.height) {
-        boneco.y = canvas.height - boneco.height;
-        boneco.dy = 0;
-        boneco.jumping = false;
-      }
+        function moveBox() {
+            if (isPaused) return;
 
-      estrelas.forEach((estrela, index) => {
-        if (
-          boneco.x < estrela.x + estrela.size &&
-          boneco.x + boneco.width > estrela.x &&
-          boneco.y < estrela.y + estrela.size &&
-          boneco.y + boneco.height > estrela.y
-        ) {
-          estrelas.splice(index, 1);
-          score++;
-          scoreboard.textContent = `Estrelas: ${score}`;
+            const areaWidth = gameArea.clientWidth - box.offsetWidth;
+            const areaHeight = gameArea.clientHeight - box.offsetHeight;
+            const x = Math.floor(Math.random() * areaWidth);
+            const y = Math.floor(Math.random() * areaHeight);
+
+            box.style.left = x + "px";
+            box.style.top = y + "px";
         }
-      });
 
-      if (estrelas.length < maxEstrelas) criarEstrela();
-    }
+        function hitBox() {
+            if (!isPaused) {
+                score++;
+                scoreDisplay.textContent = "Pontuação: " + score;
+                moveBox(); // Move imediatamente após acerto
+            }
+        }
 
-    function criarEstrela() {
-      const size = Math.random() * 15 + 10;
-      const x = Math.random() * (canvas.width - size);
-      const y = Math.random() * (canvas.height / 2);
-      estrelas.push({ x, y, size, color: '#FFD700' });
-    }
+        function togglePause() {
+            isPaused = !isPaused;
+            if (isPaused) {
+                box.style.display = "none";
+            } else {
+                box.style.display = "block";
+            }
+        }
 
-    let hue = 0;
+        function resetGame() {
+            clearInterval(gameInterval);
+            score = 0;
+            scoreDisplay.textContent = "Pontuação: 0";
+            box.style.display = "none";
+        }
+    </script>
 
-    function draw() {
-      hue = (hue + 0.3) % 360;
-      ctx.fillStyle = `hsl(${hue}, 30%, 20%)`;
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      ctx.fillStyle = '#444';
-      plataformas.forEach((plat) => {
-        ctx.fillRect(plat.x, plat.y, plat.width, plat.height);
-      });
-
-      ctx.fillStyle = boneco.color;
-      ctx.fillRect(boneco.x, boneco.y, boneco.width, boneco.height);
-
-      estrelas.forEach((estrela) => {
-        ctx.fillStyle = estrela.color;
-        ctx.beginPath();
-        ctx.arc(estrela.x, estrela.y, estrela.size / 2, 0, Math.PI * 2);
-        ctx.fill();
-      });
-    }
-
-    function loop() {
-      update();
-      draw();
-      requestAnimationFrame(loop);
-    }
-
-    loop();
-
-    // Controles para mobile
-    document.getElementById('left').addEventListener('touchstart', () => { keys['ArrowLeft'] = true; });
-    document.getElementById('left').addEventListener('touchend', () => { keys['ArrowLeft'] = false; });
-
-    document.getElementById('right').addEventListener('touchstart', () => { keys['ArrowRight'] = true; });
-    document.getElementById('right').addEventListener('touchend', () => { keys['ArrowRight'] = false; });
-
-    document.getElementById('jump').addEventListener('touchstart', () => {
-      if (!boneco.jumping) {
-        keys['ArrowUp'] = true;
-        setTimeout(() => { keys['ArrowUp'] = false; }, 100);
-      }
-    });
-  </script>
 </body>
 </html>
